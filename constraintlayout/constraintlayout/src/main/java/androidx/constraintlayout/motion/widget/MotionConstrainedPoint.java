@@ -24,6 +24,7 @@ import androidx.constraintlayout.core.widgets.ConstraintWidget;
 import android.util.Log;
 import android.view.View;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -246,7 +247,7 @@ class MotionConstrainedPoint implements Comparable<MotionConstrainedPoint> {
         Set<String> at = c.mCustomConstraints.keySet();
         for (String s : at) {
             ConstraintAttribute attr = c.mCustomConstraints.get(s);
-            if (attr.getType() != ConstraintAttribute.AttributeType.STRING_TYPE) {
+            if (attr.isContinuous()) {
                 this.attributes.put(s,attr);
             }
         }
@@ -315,8 +316,6 @@ class MotionConstrainedPoint implements Comparable<MotionConstrainedPoint> {
 
                             }
 
-                        } else {
-                            Log.e(TAG, "UNKNOWN customName " + customName);
                         }
                     } else {
                         Log.e(TAG, "UNKNOWN spline " + s);

@@ -317,7 +317,9 @@ public class ConstraintLayoutStates {
                                 parseConstraintSet(context, parser);
                                 break;
                             default:
-                                Log.v(TAG, "unknown tag " + tagName);
+                                if (DEBUG) {
+                                    Log.v(TAG, "unknown tag " + tagName);
+                                }
                         }
 
                         break;
@@ -347,9 +349,10 @@ public class ConstraintLayoutStates {
         ConstraintSet set = new ConstraintSet();
         int count = parser.getAttributeCount();
         for (int i = 0; i < count; i++) {
-            if ("id".equals(parser.getAttributeName(i))) {
-                String s = parser.getAttributeValue(i);
-
+            String name = parser.getAttributeName(i);
+            String s = parser.getAttributeValue(i);
+            if (name == null || s == null) continue;
+            if ("id".equals(name)) {
                 int id = -1;
                 if (s.contains("/")) {
                     String tmp = s.substring(s.indexOf('/') + 1);
@@ -357,7 +360,7 @@ public class ConstraintLayoutStates {
 
                 }
                 if (id == -1) {
-                    if (s != null && s.length() > 1) {
+                    if (s.length() > 1) {
                         id = Integer.parseInt(s.substring(1));
                     } else {
                         Log.e(TAG, "error in parsing id");

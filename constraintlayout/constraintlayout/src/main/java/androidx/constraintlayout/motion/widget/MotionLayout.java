@@ -16,6 +16,7 @@
 
 package androidx.constraintlayout.motion.widget;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
@@ -28,6 +29,7 @@ import android.os.Build;
 import android.os.Bundle;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.ViewCompat;
 import androidx.constraintlayout.widget.Barrier;
 import androidx.constraintlayout.widget.ConstraintHelper;
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -2323,7 +2325,7 @@ public class MotionLayout extends ConstraintLayout implements
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
                     layoutParams.resolveLayoutDirection(getLayoutDirection());
                 } else {
-                    layoutParams.resolveLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+                    layoutParams.resolveLayoutDirection(ViewCompat.LAYOUT_DIRECTION_LTR);
                 }
                 applyConstraintsFromLayoutParams(false, view, child, layoutParams, mapIdToWidget);
                 if (cset.getVisibilityMode(view.getId()) == ConstraintSet.VISIBILITY_MODE_IGNORE) {
@@ -2359,6 +2361,7 @@ public class MotionLayout extends ConstraintLayout implements
             return null;
         }
 
+        @SuppressLint("LogConditional")
         private void debugLayoutParam(String str, LayoutParams params) {
             String a = " ";
             a += params.startToStart != UNSET ? "SS" : "__";
@@ -2376,6 +2379,7 @@ public class MotionLayout extends ConstraintLayout implements
             Log.v(TAG, str + a);
         }
 
+        @SuppressLint("LogConditional")
         private void debugWidget(String str, ConstraintWidget child) {
             String a = " ";
             a += child.mTop.mTarget != null ? ("T" + (child.mTop.mTarget.mType == ConstraintAnchor.Type.TOP ? "T" : "B")) : "__";
@@ -2385,6 +2389,7 @@ public class MotionLayout extends ConstraintLayout implements
             Log.v(TAG, str + a + " ---  " + child);
         }
 
+        @SuppressLint("LogConditional")
         private void debugLayout(String title, ConstraintWidgetContainer c) {
             View v = (View) c.getCompanionWidget();
             String cName = title + " " + Debug.getName(v);
@@ -2620,7 +2625,7 @@ public class MotionLayout extends ConstraintLayout implements
     }
 
     @Override
-    public boolean onStartNestedScroll(View child, View target, int axes, int type) {
+    public boolean onStartNestedScroll(@NonNull View child, @NonNull View target, int axes, int type) {
         if (DEBUG) {
             Log.v(TAG, "********** onStartNestedScroll( child:" + Debug.getName(child) + ", target:" + Debug.getName(target) + ", axis:" + axes + ", type:" + type);
         }
@@ -2634,27 +2639,31 @@ public class MotionLayout extends ConstraintLayout implements
     }
 
     @Override
-    public void onNestedScrollAccepted(View child, View target, int axes, int type) {
+    public void onNestedScrollAccepted(@NonNull View child, @NonNull View target, int axes, int type) {
         if (DEBUG) {
             Log.v(TAG, "********** onNestedScrollAccepted( child:" + Debug.getName(child) + ", target:" + Debug.getName(target) + ", axis:" + axes + ", type:" + type);
         }
+        mScrollTargetTime = getNanoTime();
+        mScrollTargetDT = 0;
+        mScrollTargetDX = 0;
+        mScrollTargetDY = 0;
     }
 
     @Override
-    public void onStopNestedScroll(View target, int type) {
+    public void onStopNestedScroll(@NonNull View target, int type) {
         if (DEBUG) {
             Log.v(TAG, "********** onStopNestedScroll(   target:" + Debug.getName(target) + " , type:" + type + " " + mScrollTargetDX + ", " + mScrollTargetDY);
             Debug.logStack(TAG, "onStopNestedScroll ", 8);
 
         }
-        if (mScene == null) {
+        if (mScene == null || mScrollTargetDT == 0) {
             return;
         }
         mScene.processScrollUp(mScrollTargetDX / mScrollTargetDT, mScrollTargetDY / mScrollTargetDT);
     }
 
    @Override
-   public void onNestedScroll(View target, int dxConsumed, int dyConsumed, int dxUnconsumed, int dyUnconsumed, int type, int[] consumed) {
+   public void onNestedScroll(@NonNull View target, int dxConsumed, int dyConsumed, int dxUnconsumed, int dyUnconsumed, int type, int[] consumed) {
      if (mUndergoingMotion || dxConsumed != 0 || dyConsumed != 0) {
          consumed[0] += dxUnconsumed;
          consumed[1] += dyUnconsumed;
@@ -2663,25 +2672,26 @@ public class MotionLayout extends ConstraintLayout implements
    }
 
     @Override
-    public void onNestedScroll(View target, int dxConsumed, int dyConsumed, int dxUnconsumed, int dyUnconsumed, int type) {
+    public void onNestedScroll(@NonNull View target, int dxConsumed, int dyConsumed, int dxUnconsumed, int dyUnconsumed, int type) {
         if (DEBUG) {
             Log.v(TAG, "********** onNestedScroll( target:" + Debug.getName(target) + ", dxConsumed:" + dxConsumed + ", dyConsumed:" + dyConsumed + ", dyConsumed:" + dxUnconsumed + ", dyConsumed:" + dyUnconsumed + ", type:" + type);
         }
     }
 
     @Override
-    public void onNestedPreScroll(View target, int dx, int dy, int[] consumed, int type) {
+    public void onNestedPreScroll(@NonNull View target, int dx, int dy, @NonNull int[] consumed, int type) {
 
-        if (mScene == null || mScene.mCurrentTransition == null) {
+        MotionScene scene = mScene;
+        if (scene == null) {
             return;
         }
 
-        if (!mScene.mCurrentTransition.isEnabled()) {
+        MotionScene.Transition currentTransition = scene.mCurrentTransition;
+        if (currentTransition == null || !currentTransition.isEnabled()) {
             return;
         }
 
-        MotionScene.Transition currentTransition = mScene.mCurrentTransition;
-        if (currentTransition != null && currentTransition.isEnabled()) {
+        if (currentTransition.isEnabled()) {
             TouchResponse touchResponse = currentTransition.getTouchResponse();
             if (touchResponse != null) {
                 int regionId = touchResponse.getTouchRegionId();
@@ -2691,7 +2701,7 @@ public class MotionLayout extends ConstraintLayout implements
             }
         }
 
-        if (mScene != null && mScene.getMoveWhenScrollAtTop()) {
+        if (scene.getMoveWhenScrollAtTop()) {
             // This blocks transition during scrolling
             if ((mTransitionPosition == 1 || mTransitionPosition == 0) && target.canScrollVertically(-1)) {
                 return;
@@ -2699,8 +2709,8 @@ public class MotionLayout extends ConstraintLayout implements
         }
 
         // This should be disabled in androidx
-        if (currentTransition.getTouchResponse() != null && (mScene.mCurrentTransition.getTouchResponse().getFlags() & TouchResponse.FLAG_DISABLE_POST_SCROLL) != 0) {
-            float dir = mScene.getProgressDirection(dx, dy);
+        if (currentTransition.getTouchResponse() != null && (currentTransition.getTouchResponse().getFlags() & TouchResponse.FLAG_DISABLE_POST_SCROLL) != 0) {
+            float dir = scene.getProgressDirection(dx, dy);
             if ((mTransitionLastPosition <= 0.0f && (dir < 0)) ||
                     (mTransitionLastPosition >= 1.0f && (dir > 0))) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -2729,7 +2739,7 @@ public class MotionLayout extends ConstraintLayout implements
         if (DEBUG) {
             Log.v(TAG, "********** dy = " + dx + " dy = " + dy + " dt = " + mScrollTargetDT);
         }
-        mScene.processScrollMove(dx, dy);
+        scene.processScrollMove(dx, dy);
         if (progress != mTransitionPosition) {
             consumed[0] = dx;
             consumed[1] = dy;
@@ -2742,12 +2752,12 @@ public class MotionLayout extends ConstraintLayout implements
     }
 
     @Override
-    public boolean onNestedPreFling(View target, float velocityX, float velocityY) {
+    public boolean onNestedPreFling(@NonNull View target, float velocityX, float velocityY) {
         return false;
     }
 
     @Override
-    public boolean onNestedFling(View target, float velocityX, float velocityY, boolean consumed) {
+    public boolean onNestedFling(@NonNull View target, float velocityX, float velocityY, boolean consumed) {
         return false;
     }
 
@@ -3090,6 +3100,7 @@ public class MotionLayout extends ConstraintLayout implements
 
     }
 
+    @SuppressLint("LogConditional")
     private void debugPos() {
         for (int i = 0; i < getChildCount(); i++) {
             final View child = getChildAt(i);
@@ -3583,8 +3594,10 @@ public class MotionLayout extends ConstraintLayout implements
     }
 
     private void checkStructure(MotionScene.Transition transition) {
-        Log.v(TAG, "CHECK: transition = " + transition.debugString(getContext()));
-        Log.v(TAG, "CHECK: transition.setDuration = " + transition.getDuration());
+        if (DEBUG) {
+            Log.v(TAG, "CHECK: transition = " + transition.debugString(getContext()));
+            Log.v(TAG, "CHECK: transition.setDuration = " + transition.getDuration());
+        }
         if (transition.getStartConstraintSetId() == transition.getEndConstraintSetId()) {
             Log.e(TAG, "CHECK: start and end constraint set should not be the same!");
         }
@@ -3662,7 +3675,7 @@ public class MotionLayout extends ConstraintLayout implements
      */
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
-        if (mScene == null || mInteractionEnabled == false) {
+        if (mScene == null || !mInteractionEnabled) {
             return false;
         }
 
